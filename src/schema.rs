@@ -18,9 +18,9 @@ table! {
 table! {
     person_jobs (id) {
         id -> Uuid,
-        person_id -> Nullable<Uuid>,
+        person_id -> Uuid,
         title -> Varchar,
-        income -> Nullable<Money>,
+        income -> Nullable<Int4>,
         location -> Nullable<Varchar>,
     }
 }
@@ -28,7 +28,7 @@ table! {
 table! {
     person_skills (id) {
         id -> Uuid,
-        person_id -> Nullable<Uuid>,
+        person_id -> Uuid,
         skill -> Varchar,
     }
 }
@@ -39,9 +39,11 @@ table! {
         first_name -> Varchar,
         last_name -> Varchar,
         father_name -> Varchar,
-        bithday -> Date,
+        birthday -> Timestamp,
         national_number -> Bpchar,
         phone_number -> Bpchar,
+        case_id -> Uuid,
+        is_leader -> Bool,
         education_field -> Nullable<Varchar>,
         education_location -> Nullable<Varchar>,
     }
@@ -61,6 +63,7 @@ joinable!(cases -> users (editor));
 joinable!(person_default_job -> person_jobs (person_id));
 joinable!(person_jobs -> persons (person_id));
 joinable!(person_skills -> persons (person_id));
+joinable!(persons -> cases (case_id));
 
 allow_tables_to_appear_in_same_query!(
     cases,

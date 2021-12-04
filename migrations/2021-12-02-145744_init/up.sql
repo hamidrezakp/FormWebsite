@@ -21,9 +21,11 @@ CREATE TABLE persons (
 	first_name VARCHAR(30) NOT NULL,
 	last_name VARCHAR(30) NOT NULL,
 	father_name VARCHAR(30) NOT NULL,
-	bithday DATE NOT NULL,
+	birthday TIMESTAMP NOT NULL,
 	national_number CHAR(10) NOT NULL,
 	phone_number CHAR(13) NOT NULL,
+	case_id UUID NOT NULL REFERENCES cases(id),
+	is_leader BOOLEAN DEFAULT FALSE NOT NULL,
 
 	education_field VARCHAR(100) NULL,
 	education_location VARCHAR(100) NULL
@@ -31,9 +33,9 @@ CREATE TABLE persons (
 
 CREATE TABLE person_jobs (
 	id UUID PRIMARY KEY,
-	person_id UUID REFERENCES persons(id),
+	person_id UUID NOT NULL REFERENCES persons(id),
 	title VARCHAR(100) NOT NULL,
-	income MONEY NULL,
+	income INTEGER NULL,
 	location VARCHAR(100) NULL,
 
 	UNIQUE (id, person_id)
@@ -41,7 +43,7 @@ CREATE TABLE person_jobs (
 
 CREATE TABLE person_skills (
 	id UUID PRIMARY KEY,
-	person_id UUID REFERENCES persons(id),
+	person_id UUID NOT NULL REFERENCES persons(id),
 	skill VARCHAR(200) NOT NULL
 );
 
