@@ -9,8 +9,10 @@ use uuid::Uuid;
 
 type Toman = i32;
 
-#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, Clone)]
-#[table_name = "users"]
+#[derive(
+    Debug, Queryable, Serialize, Deserialize, Insertable, Clone, Identifiable, AsChangeset,
+)]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct User {
     id: Uuid,
     username: String,
@@ -27,10 +29,13 @@ pub struct NewUser {
     password_hash: String,
 }
 
-#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, Clone)]
-#[table_name = "cases"]
+#[derive(
+    Debug, Queryable, Serialize, Deserialize, Insertable, Identifiable, AsChangeset, Clone,
+)]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct Case {
     id: Uuid,
+    number: i32,
     active: bool,
     registration_date: NaiveDateTime,
     editor: Uuid,
@@ -42,8 +47,10 @@ pub struct NewCase {
     address: Option<String>,
 }
 
-#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, Clone)]
-#[table_name = "persons"]
+#[derive(
+    Debug, Queryable, Serialize, Deserialize, Insertable, Identifiable, AsChangeset, Clone,
+)]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct Person {
     id: Uuid,
     first_name: String,
@@ -66,14 +73,15 @@ pub struct NewPerson {
     birthday: NaiveDateTime,
     national_number: String,
     phone_number: String,
-    case_id: Uuid,
     is_leader: bool,
     education_field: Option<String>,
     education_location: Option<String>,
 }
 
-#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, Clone)]
-#[table_name = "person_jobs"]
+#[derive(
+    Debug, Queryable, Serialize, Deserialize, Insertable, Identifiable, AsChangeset, Clone,
+)]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct PersonJob {
     id: Uuid,
     person_id: Uuid,
@@ -90,8 +98,10 @@ pub struct NewPersonJob {
     location: Option<String>,
 }
 
-#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, Clone)]
-#[table_name = "person_skills"]
+#[derive(
+    Debug, Queryable, Serialize, Deserialize, Insertable, Identifiable, AsChangeset, Clone,
+)]
+#[changeset_options(treat_none_as_null = "true")]
 pub struct PersonSkill {
     id: Uuid,
     person_id: Uuid,
@@ -104,68 +114,153 @@ pub struct NewPersonSkill {
     skill: String,
 }
 
+#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, AsChangeset, Clone)]
+#[changeset_options(treat_none_as_null = "true")]
+pub struct PersonRequirement {
+    id: Uuid,
+    person_id: Uuid,
+    description: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NewPersonRequirement {
+    person_id: Uuid,
+    description: String,
+}
+
 impl User {
-    pub fn new(entity: NewUser) -> Self {
-        Self {
-            id: Uuid::from_u128(rand::random()),
-            username: entity.username,
-            first_name: entity.first_name,
-            last_name: entity.last_name,
-            password_hash: entity.password_hash,
+    pub async fn new(conn: &Db, entity: NewUser) -> Result<Self> {
+        use self::users::dsl::*;
+
+        let mut results = conn
+            .run(move |c| {
+                diesel::insert_into(users)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        username.eq(entity.username),
+                        first_name.eq(entity.first_name),
+                        last_name.eq(entity.last_name),
+                        password_hash.eq(entity.password_hash),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => Ok(entity),
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
         }
     }
 
     pub async fn insert(conn: &Db, entity: Self) -> Result<()> {
+        use self::users::dsl::*;
+
         let result = conn
             .run(move |c| {
-                diesel::insert_into(users::table)
+                diesel::insert_into(users)
                     .values(entity)
-                    .returning(users::id)
+                    .returning(id)
                     .get_results::<Uuid>(c)
             })
             .await;
 
         match result {
             Ok(_) => Ok(()),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn update(conn: &Db, entity: Self) -> Result<()> {
+        use self::users::dsl::*;
+
+        let result = conn
+            .run(move |c| diesel::update(users).set(&entity).execute(c))
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::DatabaseError(
+                "Uuid is wrong, can not update".to_owned(),
+            )),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
 
     pub async fn all(conn: &Db) -> Result<Vec<User>> {
-        conn.run(|c| users::dsl::users.order(users::id.desc()).load::<User>(c))
+        use self::users::dsl::*;
+
+        conn.run(|c| users.order(id.desc()).load::<User>(c))
             .await
             .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
 
-    pub async fn get(conn: &Db, id: Uuid) -> Result<Option<User>> {
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<User>> {
+        use self::users::dsl::*;
+
         let result = conn
-            .run(move |c| users::dsl::users.find(id).get_result::<User>(c))
+            .run(move |c| users.find(p_id).get_result::<User>(c))
             .await;
         match result {
             Ok(r) => Ok(Some(r)),
             Err(diesel::result::Error::NotFound) => Ok(None),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::users::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(users.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
         }
     }
 }
 
 impl Case {
-    pub fn new(entity: NewCase, editor_id: Uuid) -> Self {
-        Self {
-            id: Uuid::from_u128(rand::random()),
-            active: true,
-            registration_date: Utc::now().naive_utc(),
-            editor: editor_id,
-            address: entity.address,
+    pub async fn new(conn: &Db, entity: NewCase, editor_id: Uuid) -> Result<Self> {
+        use self::cases::dsl::*;
+
+        let mut results = conn
+            .run(move |c| {
+                diesel::insert_into(cases)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        active.eq(true),
+                        registration_date.eq(Utc::now().naive_utc()),
+                        editor.eq(editor_id),
+                        address.eq(entity.address),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => Ok(entity),
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
         }
     }
 
-    pub async fn insert(conn: &Db, entity: Self) -> Result<()> {
+    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::cases::dsl::*;
+
+        let entity = entity.clone();
         let result = conn
             .run(move |c| {
-                diesel::insert_into(cases::table)
+                diesel::insert_into(cases)
                     .values(entity)
-                    .returning(cases::id)
+                    .returning(id)
                     .get_results::<Uuid>(c)
             })
             .await;
@@ -176,15 +271,36 @@ impl Case {
         }
     }
 
+    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::cases::dsl::*;
+
+        let entity = entity.clone();
+        let result = conn
+            .run(move |c| diesel::update(cases).set(entity).execute(c))
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::DatabaseError(
+                "Uuid is wrong, can not update".to_owned(),
+            )),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
     pub async fn all(conn: &Db) -> Result<Vec<Case>> {
-        conn.run(|c| cases::dsl::cases.order(cases::id.desc()).load::<Case>(c))
+        use self::cases::dsl::*;
+
+        conn.run(|c| cases.order(id.desc()).load::<Case>(c))
             .await
             .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
 
-    pub async fn get(conn: &Db, id: Uuid) -> Result<Option<Case>> {
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<Case>> {
+        use self::cases::dsl::*;
+
         let result = conn
-            .run(move |c| cases::dsl::cases.find(id).get_result::<Case>(c))
+            .run(move |c| cases.find(p_id).get_result::<Case>(c))
             .await;
         match result {
             Ok(r) => Ok(Some(r)),
@@ -192,31 +308,72 @@ impl Case {
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
-}
 
-impl Person {
-    pub fn new(entity: NewPerson) -> Self {
-        Self {
-            id: Uuid::from_u128(rand::random()),
-            first_name: entity.first_name,
-            last_name: entity.last_name,
-            father_name: entity.father_name,
-            birthday: entity.birthday,
-            national_number: entity.national_number,
-            phone_number: entity.phone_number,
-            case_id: entity.case_id,
-            is_leader: entity.is_leader,
-            education_field: entity.education_field,
-            education_location: entity.education_location,
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::cases::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(cases.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
         }
     }
 
-    pub async fn insert(conn: &Db, entity: Self) -> Result<()> {
+    pub fn activate(&mut self) {
+        self.active = true;
+    }
+
+    pub fn deactivate(&mut self) {
+        self.active = false;
+    }
+}
+
+impl Person {
+    pub async fn new(conn: &Db, entity: NewPerson, p_case_id: Uuid) -> Result<Self> {
+        use self::persons::dsl::*;
+
+        let mut results = conn
+            .run(move |c| {
+                diesel::insert_into(persons)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        first_name.eq(entity.first_name),
+                        last_name.eq(entity.last_name),
+                        father_name.eq(entity.father_name),
+                        birthday.eq(entity.birthday),
+                        national_number.eq(entity.national_number),
+                        phone_number.eq(entity.phone_number),
+                        case_id.eq(p_case_id),
+                        is_leader.eq(entity.is_leader),
+                        education_field.eq(entity.education_field),
+                        education_location.eq(entity.education_location),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => Ok(entity),
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
+        }
+    }
+
+    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::persons::dsl::*;
+
+        let entity = entity.clone();
         let result = conn
             .run(move |c| {
-                diesel::insert_into(persons::table)
+                diesel::insert_into(persons)
                     .values(entity)
-                    .returning(persons::id)
+                    .returning(id)
                     .get_results::<Uuid>(c)
             })
             .await;
@@ -227,45 +384,149 @@ impl Person {
         }
     }
 
+    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::persons::dsl::*;
+
+        let entity = entity.clone();
+        let result = conn
+            .run(move |c| diesel::update(persons).set(&entity).execute(c))
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::DatabaseError(
+                "Uuid is wrong, can not update".to_owned(),
+            )),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
     pub async fn all(conn: &Db) -> Result<Vec<Person>> {
-        conn.run(|c| {
-            persons::dsl::persons
-                .order(persons::id.desc())
+        use self::persons::dsl::*;
+
+        conn.run(|c| persons.order(id.desc()).load::<Person>(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<Person>> {
+        use self::persons::dsl::*;
+
+        let result = conn
+            .run(move |c| persons.find(p_id).get_result::<Person>(c))
+            .await;
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn all_by_case_id(conn: &Db, p_case_id: Uuid) -> Result<Vec<Person>> {
+        use self::persons::dsl::*;
+
+        conn.run(move |c| {
+            persons
+                .order(id.desc())
+                .filter(case_id.eq(p_case_id))
                 .load::<Person>(c)
         })
         .await
         .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
 
-    pub async fn get(conn: &Db, id: Uuid) -> Result<Option<Person>> {
-        let result = conn
-            .run(move |c| persons::dsl::persons.find(id).get_result::<Person>(c))
-            .await;
-        match result {
-            Ok(r) => Ok(Some(r)),
-            Err(diesel::result::Error::NotFound) => Ok(None),
-            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::persons::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(persons.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
+        }
+    }
+
+    pub async fn set_leader(conn: &Db, person_id: Uuid) -> Result<()> {
+        use self::persons::dsl::*;
+
+        let count = conn
+            .run(move |c| {
+                diesel::update(persons)
+                    .filter(id.eq(person_id))
+                    .set(is_leader.eq(true))
+                    .execute(c)
+                    .map_err(|e| Errors::DatabaseError(e.to_string()))
+            })
+            .await?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
+        }
+    }
+
+    pub async fn clear_leader(conn: &Db, person_id: Uuid) -> Result<()> {
+        use self::persons::dsl::*;
+
+        let count = conn
+            .run(move |c| {
+                diesel::update(persons)
+                    .filter(id.eq(person_id))
+                    .set(is_leader.eq(false))
+                    .execute(c)
+                    .map_err(|e| Errors::DatabaseError(e.to_string()))
+            })
+            .await?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
         }
     }
 }
 
 impl PersonJob {
-    pub fn new(entity: NewPersonJob) -> Self {
-        Self {
-            id: Uuid::from_u128(rand::random()),
-            person_id: entity.person_id,
-            title: entity.title,
-            income: entity.income,
-            location: entity.location,
+    pub async fn new(conn: &Db, entity: NewPersonJob, p_person_id: Uuid) -> Result<Self> {
+        use self::person_jobs::dsl::*;
+
+        let mut results: Vec<PersonJob> = conn
+            .run(move |c| {
+                diesel::insert_into(person_jobs)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        person_id.eq(p_person_id),
+                        title.eq(entity.title),
+                        income.eq(entity.income),
+                        location.eq(entity.location),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => {
+                PersonJob::set_default(conn, entity.id).await?;
+                Ok(entity)
+            }
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
         }
     }
 
-    pub async fn insert(conn: &Db, entity: Self) -> Result<()> {
+    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::person_jobs::dsl::*;
+
+        let entity = entity.clone();
         let result = conn
             .run(move |c| {
-                diesel::insert_into(person_jobs::table)
+                diesel::insert_into(person_jobs)
                     .values(entity)
-                    .returning(person_jobs::id)
+                    .returning(id)
                     .get_results::<Uuid>(c)
             })
             .await;
@@ -276,47 +537,132 @@ impl PersonJob {
         }
     }
 
+    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::person_jobs::dsl::*;
+
+        let entity = entity.clone();
+        let result = conn
+            .run(move |c| diesel::update(person_jobs).set(&entity).execute(c))
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::DatabaseError(
+                "Uuid is wrong, can not update".to_owned(),
+            )),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
     pub async fn all(conn: &Db) -> Result<Vec<PersonJob>> {
-        conn.run(|c| {
-            person_jobs::dsl::person_jobs
-                .order(person_jobs::id.desc())
+        use self::person_jobs::dsl::*;
+
+        conn.run(|c| person_jobs.order(id.desc()).load::<PersonJob>(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<PersonJob>> {
+        use self::person_jobs::dsl::*;
+
+        let result = conn
+            .run(move |c| person_jobs.find(p_id).get_result::<PersonJob>(c))
+            .await;
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn all_by_person_id(conn: &Db, p_person_id: Uuid) -> Result<Vec<PersonJob>> {
+        use self::person_jobs::dsl::*;
+
+        conn.run(move |c| {
+            person_jobs
+                .order(id.desc())
+                .filter(person_id.eq(p_person_id))
                 .load::<PersonJob>(c)
         })
         .await
         .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
 
-    pub async fn get(conn: &Db, id: Uuid) -> Result<Option<PersonJob>> {
-        let result = conn
-            .run(move |c| {
-                person_jobs::dsl::person_jobs
-                    .find(id)
-                    .get_result::<PersonJob>(c)
-            })
-            .await;
-        match result {
-            Ok(r) => Ok(Some(r)),
-            Err(diesel::result::Error::NotFound) => Ok(None),
-            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::person_jobs::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(person_jobs.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
+        }
+    }
+
+    pub async fn set_default(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::person_default_job::dsl::*;
+
+        let _ = conn
+            .run(move |c| diesel::delete(person_default_job.filter(person_id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        let job = PersonJob::get(conn, p_id).await?;
+
+        match job {
+            None => Err(Errors::DatabaseError("person job not found".to_owned())),
+            Some(job) => {
+                let _ = conn
+                    .run(move |c| {
+                        diesel::insert_into(person_default_job)
+                            .values((person_id.eq(job.person_id), person_job_id.eq(job.id)))
+                            .execute(c)
+                            .map_err(|e| Errors::DatabaseError(e.to_string()))
+                    })
+                    .await?;
+                Ok(())
+            }
         }
     }
 }
 
 impl PersonSkill {
-    pub fn new(entity: NewPersonSkill) -> Self {
-        Self {
-            id: Uuid::from_u128(rand::random()),
-            person_id: entity.person_id,
-            skill: entity.skill,
+    pub async fn new(conn: &Db, entity: NewPersonSkill, p_person_id: Uuid) -> Result<Self> {
+        use self::person_skills::dsl::*;
+
+        let mut results = conn
+            .run(move |c| {
+                diesel::insert_into(person_skills)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        person_id.eq(p_person_id),
+                        skill.eq(entity.skill),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => Ok(entity),
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
         }
     }
 
-    pub async fn insert(conn: &Db, entity: Self) -> Result<()> {
+    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::person_skills::dsl::*;
+
+        let entity = entity.clone();
         let result = conn
             .run(move |c| {
-                diesel::insert_into(person_skills::table)
+                diesel::insert_into(person_skills)
                     .values(entity)
-                    .returning(person_skills::id)
+                    .returning(id)
                     .get_results::<Uuid>(c)
             })
             .await;
@@ -327,28 +673,186 @@ impl PersonSkill {
         }
     }
 
+    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::person_skills::dsl::*;
+
+        let entity = entity.clone();
+        let result = conn
+            .run(move |c| diesel::update(person_skills).set(&entity).execute(c))
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::DatabaseError(
+                "Uuid is wrong, can not update".to_owned(),
+            )),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
     pub async fn all(conn: &Db) -> Result<Vec<PersonSkill>> {
-        conn.run(|c| {
-            person_skills::dsl::person_skills
-                .order(person_skills::id.desc())
+        use self::person_skills::dsl::*;
+
+        conn.run(|c| person_skills.order(id.desc()).load::<PersonSkill>(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<PersonSkill>> {
+        use self::person_skills::dsl::*;
+
+        let result = conn
+            .run(move |c| person_skills.find(p_id).get_result::<PersonSkill>(c))
+            .await;
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn all_by_person_id(conn: &Db, p_person_id: Uuid) -> Result<Vec<PersonSkill>> {
+        use self::person_skills::dsl::*;
+
+        conn.run(move |c| {
+            person_skills
+                .order(id.desc())
+                .filter(person_id.eq(p_person_id))
                 .load::<PersonSkill>(c)
         })
         .await
         .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
 
-    pub async fn get(conn: &Db, id: Uuid) -> Result<Option<PersonSkill>> {
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::person_skills::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(person_skills.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
+        }
+    }
+}
+
+impl PersonRequirement {
+    pub async fn new(conn: &Db, entity: NewPersonRequirement, p_person_id: Uuid) -> Result<Self> {
+        use self::person_requirements::dsl::*;
+
+        let mut results = conn
+            .run(move |c| {
+                diesel::insert_into(person_requirements)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        person_id.eq(p_person_id),
+                        description.eq(entity.description),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => Ok(entity),
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
+        }
+    }
+
+    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::person_requirements::dsl::*;
+
+        let entity = entity.clone();
         let result = conn
             .run(move |c| {
-                person_skills::dsl::person_skills
-                    .find(id)
-                    .get_result::<PersonSkill>(c)
+                diesel::insert_into(person_requirements)
+                    .values(entity)
+                    .returning(id)
+                    .get_results::<Uuid>(c)
+            })
+            .await;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+        use self::person_requirements::dsl::*;
+
+        let entity = entity.clone();
+        let result = conn
+            .run(move |c| diesel::update(person_requirements).set(&entity).execute(c))
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::DatabaseError(
+                "Uuid is wrong, can not update".to_owned(),
+            )),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn all(conn: &Db) -> Result<Vec<PersonRequirement>> {
+        use self::person_requirements::dsl::*;
+
+        conn.run(|c| {
+            person_requirements
+                .order(id.desc())
+                .load::<PersonRequirement>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn all_by_person_id(conn: &Db, p_person_id: Uuid) -> Result<Vec<PersonRequirement>> {
+        use self::person_requirements::dsl::*;
+
+        conn.run(move |c| {
+            person_requirements
+                .order(id.desc())
+                .filter(person_id.eq(p_person_id))
+                .load::<PersonRequirement>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<PersonRequirement>> {
+        use self::person_requirements::dsl::*;
+
+        let result = conn
+            .run(move |c| {
+                person_requirements
+                    .find(p_id)
+                    .get_result::<PersonRequirement>(c)
             })
             .await;
         match result {
             Ok(r) => Ok(Some(r)),
             Err(diesel::result::Error::NotFound) => Ok(None),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::person_requirements::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(person_requirements.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            _ => Ok(()),
         }
     }
 }

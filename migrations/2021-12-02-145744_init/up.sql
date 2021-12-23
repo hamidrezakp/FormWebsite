@@ -10,6 +10,7 @@ CREATE TABLE users (
 
 CREATE TABLE cases (
 	id UUID PRIMARY KEY,
+	number SERIAL,
 	active BOOLEAN NOT NULL,
 	registration_date TIMESTAMP NOT NULL,
 	editor UUID NOT NULL REFERENCES users(id),
@@ -45,6 +46,12 @@ CREATE TABLE person_skills (
 	id UUID PRIMARY KEY,
 	person_id UUID NOT NULL REFERENCES persons(id),
 	skill VARCHAR(200) NOT NULL
+);
+
+CREATE TABLE person_requirements (
+	id UUID PRIMARY KEY,
+	person_id UUID NOT NULL REFERENCES persons(id),
+	description TEXT NOT NULL
 );
 
 CREATE TABLE person_default_job (

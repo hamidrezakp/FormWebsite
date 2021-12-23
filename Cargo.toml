@@ -15,18 +15,7 @@ chrono = { version = "0.4.19", features = ["serde"] }
 rand = "0.8.4"
 futures = "0.3.18"
 
-
-teloxide = { version = "0.5.3", features = ["frunk", "macros", "auto-send"] }
-log = "0.4.8"
-pretty_env_logger = "0.4.0"
-derive_more = "0.99.9"
-frunk = "0.4"
-frunk_core = "0.4"
-
 [dependencies.rocket_sync_db_pools]
 version = "0.1.0-rc.1"
 default-features = false
 features = ["diesel_postgres_pool"]
-
-[profile.release]
-lto = true

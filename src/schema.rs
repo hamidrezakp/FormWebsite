@@ -1,6 +1,7 @@
 table! {
     cases (id) {
         id -> Uuid,
+        number -> Int4,
         active -> Bool,
         registration_date -> Timestamp,
         editor -> Uuid,
@@ -22,6 +23,14 @@ table! {
         title -> Varchar,
         income -> Nullable<Int4>,
         location -> Nullable<Varchar>,
+    }
+}
+
+table! {
+    person_requirements (id) {
+        id -> Uuid,
+        person_id -> Uuid,
+        description -> Text,
     }
 }
 
@@ -62,6 +71,7 @@ table! {
 joinable!(cases -> users (editor));
 joinable!(person_default_job -> person_jobs (person_id));
 joinable!(person_jobs -> persons (person_id));
+joinable!(person_requirements -> persons (person_id));
 joinable!(person_skills -> persons (person_id));
 joinable!(persons -> cases (case_id));
 
@@ -69,6 +79,7 @@ allow_tables_to_appear_in_same_query!(
     cases,
     person_default_job,
     person_jobs,
+    person_requirements,
     person_skills,
     persons,
     users,
