@@ -92,7 +92,6 @@ pub struct PersonJob {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewPersonJob {
-    person_id: Uuid,
     title: String,
     income: Option<i32>,
     location: Option<String>,
@@ -110,7 +109,6 @@ pub struct PersonSkill {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewPersonSkill {
-    person_id: Uuid,
     skill: String,
 }
 
@@ -124,7 +122,6 @@ pub struct PersonRequirement {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewPersonRequirement {
-    person_id: Uuid,
     description: String,
 }
 
@@ -155,13 +152,13 @@ impl User {
         }
     }
 
-    pub async fn insert(conn: &Db, entity: Self) -> Result<()> {
+    pub async fn insert(self, conn: &Db) -> Result<()> {
         use self::users::dsl::*;
 
         let result = conn
             .run(move |c| {
                 diesel::insert_into(users)
-                    .values(entity)
+                    .values(self)
                     .returning(id)
                     .get_results::<Uuid>(c)
             })
@@ -173,18 +170,21 @@ impl User {
         }
     }
 
-    pub async fn update(conn: &Db, entity: Self) -> Result<()> {
+    pub async fn update(self, conn: &Db) -> Result<()> {
         use self::users::dsl::*;
 
         let result = conn
-            .run(move |c| diesel::update(users).set(&entity).execute(c))
+            .run(move |c| {
+                diesel::update(users)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
             .await;
 
         match result {
             Ok(count) if count == 1 => Ok(()),
-            Ok(_) => Err(Errors::DatabaseError(
-                "Uuid is wrong, can not update".to_owned(),
-            )),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
@@ -252,14 +252,13 @@ impl Case {
         }
     }
 
-    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn insert(self, conn: &Db) -> Result<()> {
         use self::cases::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
             .run(move |c| {
                 diesel::insert_into(cases)
-                    .values(entity)
+                    .values(self)
                     .returning(id)
                     .get_results::<Uuid>(c)
             })
@@ -271,19 +270,21 @@ impl Case {
         }
     }
 
-    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn update(self, conn: &Db) -> Result<()> {
         use self::cases::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
-            .run(move |c| diesel::update(cases).set(entity).execute(c))
+            .run(move |c| {
+                diesel::update(cases)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
             .await;
 
         match result {
             Ok(count) if count == 1 => Ok(()),
-            Ok(_) => Err(Errors::DatabaseError(
-                "Uuid is wrong, can not update".to_owned(),
-            )),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
@@ -291,7 +292,7 @@ impl Case {
     pub async fn all(conn: &Db) -> Result<Vec<Case>> {
         use self::cases::dsl::*;
 
-        conn.run(|c| cases.order(id.desc()).load::<Case>(c))
+        conn.run(|c| cases.order(registration_date.desc()).load::<Case>(c))
             .await
             .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
@@ -318,17 +319,23 @@ impl Case {
             .map_err(|e| Errors::DatabaseError(e.to_string()))?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }
 
-    pub fn activate(&mut self) {
-        self.active = true;
+    pub fn activate(self) -> Self {
+        Self {
+            active: true,
+            ..self
+        }
     }
 
-    pub fn deactivate(&mut self) {
-        self.active = false;
+    pub fn deactivate(self) -> Self {
+        Self {
+            active: false,
+            ..self
+        }
     }
 }
 
@@ -365,14 +372,13 @@ impl Person {
         }
     }
 
-    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn insert(self, conn: &Db) -> Result<()> {
         use self::persons::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
             .run(move |c| {
                 diesel::insert_into(persons)
-                    .values(entity)
+                    .values(self)
                     .returning(id)
                     .get_results::<Uuid>(c)
             })
@@ -384,19 +390,21 @@ impl Person {
         }
     }
 
-    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn update(self, conn: &Db) -> Result<()> {
         use self::persons::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
-            .run(move |c| diesel::update(persons).set(&entity).execute(c))
+            .run(move |c| {
+                diesel::update(persons)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
             .await;
 
         match result {
             Ok(count) if count == 1 => Ok(()),
-            Ok(_) => Err(Errors::DatabaseError(
-                "Uuid is wrong, can not update".to_owned(),
-            )),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
@@ -444,7 +452,7 @@ impl Person {
             .map_err(|e| Errors::DatabaseError(e.to_string()))?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }
@@ -463,7 +471,7 @@ impl Person {
             .await?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }
@@ -482,7 +490,7 @@ impl Person {
             .await?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }
@@ -518,14 +526,13 @@ impl PersonJob {
         }
     }
 
-    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn insert(self, conn: &Db) -> Result<()> {
         use self::person_jobs::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
             .run(move |c| {
                 diesel::insert_into(person_jobs)
-                    .values(entity)
+                    .values(self)
                     .returning(id)
                     .get_results::<Uuid>(c)
             })
@@ -537,19 +544,21 @@ impl PersonJob {
         }
     }
 
-    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn update(self, conn: &Db) -> Result<()> {
         use self::person_jobs::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
-            .run(move |c| diesel::update(person_jobs).set(&entity).execute(c))
+            .run(move |c| {
+                diesel::update(person_jobs)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
             .await;
 
         match result {
             Ok(count) if count == 1 => Ok(()),
-            Ok(_) => Err(Errors::DatabaseError(
-                "Uuid is wrong, can not update".to_owned(),
-            )),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
@@ -597,7 +606,7 @@ impl PersonJob {
             .map_err(|e| Errors::DatabaseError(e.to_string()))?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }
@@ -606,14 +615,16 @@ impl PersonJob {
         use self::person_default_job::dsl::*;
 
         let _ = conn
-            .run(move |c| diesel::delete(person_default_job.filter(person_id.eq(p_id))).execute(c))
+            .run(move |c| {
+                diesel::delete(person_default_job.filter(person_job_id.eq(p_id))).execute(c)
+            })
             .await
             .map_err(|e| Errors::DatabaseError(e.to_string()))?;
 
         let job = PersonJob::get(conn, p_id).await?;
 
         match job {
-            None => Err(Errors::DatabaseError("person job not found".to_owned())),
+            None => Err(Errors::BadRequest("id not found".to_owned())),
             Some(job) => {
                 let _ = conn
                     .run(move |c| {
@@ -654,14 +665,13 @@ impl PersonSkill {
         }
     }
 
-    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn insert(self, conn: &Db) -> Result<()> {
         use self::person_skills::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
             .run(move |c| {
                 diesel::insert_into(person_skills)
-                    .values(entity)
+                    .values(self)
                     .returning(id)
                     .get_results::<Uuid>(c)
             })
@@ -673,19 +683,21 @@ impl PersonSkill {
         }
     }
 
-    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn update(self, conn: &Db) -> Result<()> {
         use self::person_skills::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
-            .run(move |c| diesel::update(person_skills).set(&entity).execute(c))
+            .run(move |c| {
+                diesel::update(person_skills)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
             .await;
 
         match result {
             Ok(count) if count == 1 => Ok(()),
-            Ok(_) => Err(Errors::DatabaseError(
-                "Uuid is wrong, can not update".to_owned(),
-            )),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
@@ -733,7 +745,7 @@ impl PersonSkill {
             .map_err(|e| Errors::DatabaseError(e.to_string()))?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }
@@ -764,14 +776,13 @@ impl PersonRequirement {
         }
     }
 
-    pub async fn insert<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn insert(self, conn: &Db) -> Result<()> {
         use self::person_requirements::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
             .run(move |c| {
                 diesel::insert_into(person_requirements)
-                    .values(entity)
+                    .values(self)
                     .returning(id)
                     .get_results::<Uuid>(c)
             })
@@ -783,19 +794,21 @@ impl PersonRequirement {
         }
     }
 
-    pub async fn update<'a>(conn: &Db, entity: &'a Self) -> Result<()> {
+    pub async fn update(self, conn: &Db) -> Result<()> {
         use self::person_requirements::dsl::*;
 
-        let entity = entity.clone();
         let result = conn
-            .run(move |c| diesel::update(person_requirements).set(&entity).execute(c))
+            .run(move |c| {
+                diesel::update(person_requirements)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
             .await;
 
         match result {
             Ok(count) if count == 1 => Ok(()),
-            Ok(_) => Err(Errors::DatabaseError(
-                "Uuid is wrong, can not update".to_owned(),
-            )),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
             Err(e) => Err(Errors::DatabaseError(e.to_string())),
         }
     }
@@ -851,7 +864,7 @@ impl PersonRequirement {
             .map_err(|e| Errors::DatabaseError(e.to_string()))?;
 
         match count {
-            0 => Err(Errors::DatabaseError("id not found".to_owned())),
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
     }

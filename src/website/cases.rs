@@ -27,7 +27,7 @@ async fn insert(case: Json<NewCase>, conn: Db) -> Result<Json<Case>> {
 
 #[put("/", data = "<case>")]
 async fn update(case: Json<Case>, conn: Db) -> Result<()> {
-    Case::update(&conn, &case.into_inner()).await
+    case.into_inner().update(&conn).await
 }
 
 #[delete("/<id>")]
@@ -40,10 +40,7 @@ async fn activate(id: Uuid, conn: Db) -> Result<()> {
     let case = Case::get(&conn, id).await?;
     match case {
         None => Err(Errors::BadRequest("invalid id".to_owned())),
-        Some(mut case) => {
-            case.activate();
-            Case::update(&conn, &case).await
-        }
+        Some(case) => case.activate().update(&conn).await,
     }
 }
 
@@ -52,10 +49,7 @@ async fn deactivate(id: Uuid, conn: Db) -> Result<()> {
     let case = Case::get(&conn, id).await?;
     match case {
         None => Err(Errors::BadRequest("invalid id".to_owned())),
-        Some(mut case) => {
-            case.deactivate();
-            Case::update(&conn, &case).await
-        }
+        Some(case) => case.deactivate().update(&conn).await,
     }
 }
 
