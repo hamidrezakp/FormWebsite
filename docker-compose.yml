@@ -1,0 +1,20 @@
+version: '3.1'
+
+services:
+  db:
+    image: 'postgres:14.0'
+    restart: always
+    volumes:
+      - .db/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USERNAME: root
+      POSTGRES_PASSWORD: 1
+
+  website:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    

@@ -1,4 +1,6 @@
 CREATE TYPE Role AS ENUM ('Admin', 'Editor', 'User');
+CREATE TYPE FamilyRole AS ENUM ('Father', 'Mother', 'Children', 'NA');
+CREATE TYPE ActionStatus AS ENUM ('Todo', 'Doing', 'Done');
 
 CREATE TABLE users (
 	id UUID PRIMARY KEY,
@@ -14,7 +16,8 @@ CREATE TABLE cases (
 	active BOOLEAN NOT NULL,
 	registration_date TIMESTAMP NOT NULL,
 	editor UUID NOT NULL REFERENCES users(id),
-	address VARCHAR(300)
+	address VARCHAR(300),
+	description TEXT NULL
 );
 
 CREATE TABLE persons (
@@ -22,11 +25,13 @@ CREATE TABLE persons (
 	first_name VARCHAR(30) NOT NULL,
 	last_name VARCHAR(30) NOT NULL,
 	father_name VARCHAR(30) NOT NULL,
-	birthday TIMESTAMP NOT NULL,
+	birthday DATE NOT NULL,
 	national_number CHAR(10) NOT NULL,
 	phone_number CHAR(13) NOT NULL,
 	case_id UUID NOT NULL REFERENCES cases(id),
 	is_leader BOOLEAN DEFAULT FALSE NOT NULL,
+	family_role FamilyRole Default 'NA' NOT NULL,
+	description TEXT NULL,
 
 	education_field VARCHAR(100) NULL,
 	education_location VARCHAR(100) NULL
@@ -61,4 +66,11 @@ CREATE TABLE person_default_job (
 	PRIMARY KEY (person_id, person_job_id),
 	FOREIGN KEY (person_id, person_job_id)
 		REFERENCES person_jobs(person_id, id)
+);
+
+CREATE TABLE case_actions (
+	id UUID PRIMARY KEY,
+	case_id UUID NOT NULL REFERENCES cases(id),
+	action TEXT NOT NULL,
+	action_date TIMESTAMP NULL
 );
