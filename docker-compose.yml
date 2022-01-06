@@ -2,16 +2,20 @@ version: '3.1'
 
 services:
   db:
+    container_name: 'db'
     image: 'postgres:14.0'
     restart: always
     volumes:
       - .db/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: 'form_website'
-      POSTGRES_USER: 'root'
+      POSTGRES_USER: 'hamid'
       POSTGRES_PASSWORD: '1'
 
   website:
+    container_name: 'website'
     build: .
     restart: always
     ports:

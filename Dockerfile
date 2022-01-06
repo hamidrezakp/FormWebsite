@@ -19,6 +19,7 @@ COPY .env .
 COPY diesel.toml .
 COPY Rocket.toml .
 
+RUN apt-get update -y; apt-get install -y libssl-dev libpq-dev
 RUN chmod +x form-website
 
 EXPOSE 8000
