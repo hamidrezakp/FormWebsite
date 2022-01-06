@@ -11,9 +11,9 @@ async fn get(id: Uuid, conn: Db) -> Result<Option<Json<PersonJob>>> {
     Ok(job.map(|i| Json(i)))
 }
 
-#[post("/?<person_id>", data = "<job>")]
-async fn insert(person_id: Uuid, job: Json<NewPersonJob>, conn: Db) -> Result<Json<PersonJob>> {
-    let job = PersonJob::new(&conn, job.into_inner(), person_id).await?;
+#[post("/", data = "<job>")]
+async fn insert(job: Json<NewPersonJob>, conn: Db) -> Result<Json<PersonJob>> {
+    let job = PersonJob::new(&conn, job.into_inner()).await?;
     Ok(Json(job))
 }
 

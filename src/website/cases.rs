@@ -59,6 +59,24 @@ async fn get_all_persons(id: Uuid, conn: Db) -> Result<Json<Vec<Person>>> {
     persons.map(|i| Json(i))
 }
 
+#[get("/<id>/action")]
+async fn get_all_actions(id: Uuid, conn: Db) -> Result<Json<Vec<CaseAction>>> {
+    let actions = CaseAction::all_by_case_id(&conn, id).await;
+    actions.map(|i| Json(i))
+}
+
+#[get("/<id>/action?this_week")]
+async fn get_week_actions(id: Uuid, conn: Db) -> Result<Json<Vec<CaseAction>>> {
+    let actions = CaseAction::week_actions_for_case(&conn, id).await;
+    actions.map(|i| Json(i))
+}
+
+#[get("/<id>/action?today")]
+async fn get_today_actions(id: Uuid, conn: Db) -> Result<Json<Vec<CaseAction>>> {
+    let actions = CaseAction::today_actions_for_case(&conn, id).await;
+    actions.map(|i| Json(i))
+}
+
 pub fn get_routes() -> Vec<Route> {
     routes![
         get,
@@ -68,6 +86,9 @@ pub fn get_routes() -> Vec<Route> {
         update,
         delete,
         activate,
-        deactivate
+        deactivate,
+        get_all_actions,
+        get_week_actions,
+        get_today_actions
     ]
 }

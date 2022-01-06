@@ -1,4 +1,14 @@
 table! {
+    case_actions (id) {
+        id -> Uuid,
+        case_id -> Uuid,
+        action -> Text,
+        status -> Int4,
+        action_date -> Nullable<Timestamp>,
+    }
+}
+
+table! {
     cases (id) {
         id -> Uuid,
         number -> Int4,
@@ -6,6 +16,7 @@ table! {
         registration_date -> Timestamp,
         editor -> Uuid,
         address -> Nullable<Varchar>,
+        description -> Nullable<Text>,
     }
 }
 
@@ -48,11 +59,13 @@ table! {
         first_name -> Varchar,
         last_name -> Varchar,
         father_name -> Varchar,
-        birthday -> Timestamp,
+        birthday -> Date,
         national_number -> Bpchar,
         phone_number -> Bpchar,
         case_id -> Uuid,
         is_leader -> Bool,
+        family_role -> Int4,
+        description -> Nullable<Text>,
         education_field -> Nullable<Varchar>,
         education_location -> Nullable<Varchar>,
     }
@@ -65,9 +78,11 @@ table! {
         first_name -> Varchar,
         last_name -> Varchar,
         password_hash -> Varchar,
+        role -> Int4,
     }
 }
 
+joinable!(case_actions -> cases (case_id));
 joinable!(cases -> users (editor));
 joinable!(person_default_job -> person_jobs (person_id));
 joinable!(person_jobs -> persons (person_id));
@@ -76,6 +91,7 @@ joinable!(person_skills -> persons (person_id));
 joinable!(persons -> cases (case_id));
 
 allow_tables_to_appear_in_same_query!(
+    case_actions,
     cases,
     person_default_job,
     person_jobs,

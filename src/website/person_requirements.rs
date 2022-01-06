@@ -11,13 +11,12 @@ async fn get(id: Uuid, conn: Db) -> Result<Option<Json<PersonRequirement>>> {
     Ok(requirement.map(|i| Json(i)))
 }
 
-#[post("/?<person_id>", data = "<requirement>")]
+#[post("/", data = "<requirement>")]
 async fn insert(
-    person_id: Uuid,
     requirement: Json<NewPersonRequirement>,
     conn: Db,
 ) -> Result<Json<PersonRequirement>> {
-    let requirement = PersonRequirement::new(&conn, requirement.into_inner(), person_id).await?;
+    let requirement = PersonRequirement::new(&conn, requirement.into_inner()).await?;
     Ok(Json(requirement))
 }
 

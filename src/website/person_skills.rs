@@ -11,13 +11,9 @@ async fn get(id: Uuid, conn: Db) -> Result<Option<Json<PersonSkill>>> {
     Ok(skill.map(|i| Json(i)))
 }
 
-#[post("/?<person_id>", data = "<skill>")]
-async fn insert(
-    person_id: Uuid,
-    skill: Json<NewPersonSkill>,
-    conn: Db,
-) -> Result<Json<PersonSkill>> {
-    let skill = PersonSkill::new(&conn, skill.into_inner(), person_id).await?;
+#[post("/", data = "<skill>")]
+async fn insert(skill: Json<NewPersonSkill>, conn: Db) -> Result<Json<PersonSkill>> {
+    let skill = PersonSkill::new(&conn, skill.into_inner()).await?;
     Ok(Json(skill))
 }
 

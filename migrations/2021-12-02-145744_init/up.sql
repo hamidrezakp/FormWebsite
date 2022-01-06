@@ -1,13 +1,14 @@
-CREATE TYPE Role AS ENUM ('Admin', 'Editor', 'User');
-CREATE TYPE FamilyRole AS ENUM ('Father', 'Mother', 'Children', 'NA');
-CREATE TYPE ActionStatus AS ENUM ('Todo', 'Doing', 'Done');
+-- CREATE TYPE Role AS ENUM ('Admin', 'Editor', 'User'); 0, 1, 2
+-- CREATE TYPE FamilyRole AS ENUM ('Father', 'Mother', 'Children', 'NA'); 0, 1, 2, 3
+-- CREATE TYPE ActionStatus AS ENUM ('Todo', 'Doing', 'Done'); 0, 1, 2
 
 CREATE TABLE users (
 	id UUID PRIMARY KEY,
 	username VARCHAR(30) NOT NULL,
 	first_name VARCHAR(30) NOT NULL,
 	last_name VARCHAR(30) NOT NULL,
-	password_hash VARCHAR(64) NOT NULL
+	password_hash VARCHAR(64) NOT NULL,
+	role INTEGER DEFAULT 3 NOT NULL
 );
 
 CREATE TABLE cases (
@@ -30,7 +31,7 @@ CREATE TABLE persons (
 	phone_number CHAR(13) NOT NULL,
 	case_id UUID NOT NULL REFERENCES cases(id),
 	is_leader BOOLEAN DEFAULT FALSE NOT NULL,
-	family_role FamilyRole Default 'NA' NOT NULL,
+	family_role INTEGER DEFAULT 3 NOT NULL,
 	description TEXT NULL,
 
 	education_field VARCHAR(100) NULL,
@@ -72,5 +73,6 @@ CREATE TABLE case_actions (
 	id UUID PRIMARY KEY,
 	case_id UUID NOT NULL REFERENCES cases(id),
 	action TEXT NOT NULL,
+	status INTEGER DEFAULT 0 NOT NULL,
 	action_date TIMESTAMP NULL
 );

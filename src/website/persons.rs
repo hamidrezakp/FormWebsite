@@ -18,9 +18,9 @@ async fn get_all(conn: Db) -> Result<Json<Vec<Person>>> {
     persons.map(|i| Json(i))
 }
 
-#[post("/?<case_id>", data = "<person>")]
-async fn insert(case_id: Uuid, person: Json<NewPerson>, conn: Db) -> Result<Json<Person>> {
-    let person = Person::new(&conn, person.into_inner(), case_id).await?;
+#[post("/", data = "<person>")]
+async fn insert(person: Json<NewPerson>, conn: Db) -> Result<Json<Person>> {
+    let person = Person::new(&conn, person.into_inner()).await?;
     Ok(Json(person))
 }
 

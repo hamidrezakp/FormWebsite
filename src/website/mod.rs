@@ -1,5 +1,6 @@
 use rocket_sync_db_pools::database;
 
+mod case_actions;
 mod cases;
 mod person_jobs;
 mod person_requirements;
@@ -13,6 +14,7 @@ pub struct Db(diesel::PgConnection);
 pub async fn run() -> std::result::Result<(), rocket::Error> {
     rocket::build()
         .mount("/case", cases::get_routes())
+        .mount("/case-action", case_actions::get_routes())
         .mount("/person", persons::get_routes())
         .mount("/person-job", person_jobs::get_routes())
         .mount("/person-skill", person_skills::get_routes())

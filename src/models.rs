@@ -2,10 +2,13 @@ use super::errors::*;
 use super::schema::*;
 use super::website::Db;
 use chrono::prelude::*;
+use chrono::Duration;
 use diesel::prelude::*;
 use diesel::Insertable;
 use rocket::serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+const ACTION_STATUS_DONE: i32 = 2;
 
 type Toman = i32;
 
@@ -19,6 +22,7 @@ pub struct User {
     first_name: String,
     last_name: String,
     password_hash: String,
+    role: i32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -40,11 +44,13 @@ pub struct Case {
     registration_date: NaiveDateTime,
     editor: Uuid,
     address: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewCase {
     address: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(
@@ -56,11 +62,13 @@ pub struct Person {
     first_name: String,
     last_name: String,
     father_name: String,
-    birthday: NaiveDateTime,
+    birthday: NaiveDate,
     national_number: String,
     phone_number: String,
     case_id: Uuid,
     is_leader: bool,
+    family_role: i32,
+    description: Option<String>,
     education_field: Option<String>,
     education_location: Option<String>,
 }
@@ -70,10 +78,13 @@ pub struct NewPerson {
     first_name: String,
     last_name: String,
     father_name: String,
-    birthday: NaiveDateTime,
+    birthday: NaiveDate,
     national_number: String,
     phone_number: String,
+    case_id: Uuid,
     is_leader: bool,
+    family_role: i32,
+    description: Option<String>,
     education_field: Option<String>,
     education_location: Option<String>,
 }
@@ -92,6 +103,7 @@ pub struct PersonJob {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewPersonJob {
+    person_id: Uuid,
     title: String,
     income: Option<i32>,
     location: Option<String>,
@@ -109,6 +121,7 @@ pub struct PersonSkill {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewPersonSkill {
+    person_id: Uuid,
     skill: String,
 }
 
@@ -122,7 +135,26 @@ pub struct PersonRequirement {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewPersonRequirement {
+    person_id: Uuid,
     description: String,
+}
+
+#[derive(Debug, Queryable, Serialize, Deserialize, Insertable, AsChangeset, Clone)]
+#[changeset_options(treat_none_as_null = "true")]
+pub struct CaseAction {
+    id: Uuid,
+    case_id: Uuid,
+    action: String,
+    status: i32,
+    action_date: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NewCaseAction {
+    case_id: Uuid,
+    action: String,
+    status: i32,
+    action_date: Option<NaiveDateTime>,
 }
 
 impl User {
@@ -138,6 +170,7 @@ impl User {
                         first_name.eq(entity.first_name),
                         last_name.eq(entity.last_name),
                         password_hash.eq(entity.password_hash),
+                        role.eq(3),
                     ))
                     .get_results(c)
             })
@@ -340,7 +373,7 @@ impl Case {
 }
 
 impl Person {
-    pub async fn new(conn: &Db, entity: NewPerson, p_case_id: Uuid) -> Result<Self> {
+    pub async fn new(conn: &Db, entity: NewPerson) -> Result<Self> {
         use self::persons::dsl::*;
 
         let mut results = conn
@@ -354,8 +387,10 @@ impl Person {
                         birthday.eq(entity.birthday),
                         national_number.eq(entity.national_number),
                         phone_number.eq(entity.phone_number),
-                        case_id.eq(p_case_id),
+                        case_id.eq(entity.case_id),
                         is_leader.eq(entity.is_leader),
+                        description.eq(entity.description),
+                        family_role.eq(entity.family_role),
                         education_field.eq(entity.education_field),
                         education_location.eq(entity.education_location),
                     ))
@@ -497,7 +532,7 @@ impl Person {
 }
 
 impl PersonJob {
-    pub async fn new(conn: &Db, entity: NewPersonJob, p_person_id: Uuid) -> Result<Self> {
+    pub async fn new(conn: &Db, entity: NewPersonJob) -> Result<Self> {
         use self::person_jobs::dsl::*;
 
         let mut results: Vec<PersonJob> = conn
@@ -505,7 +540,7 @@ impl PersonJob {
                 diesel::insert_into(person_jobs)
                     .values((
                         id.eq(Uuid::from_u128(rand::random())),
-                        person_id.eq(p_person_id),
+                        person_id.eq(entity.person_id),
                         title.eq(entity.title),
                         income.eq(entity.income),
                         location.eq(entity.location),
@@ -641,7 +676,7 @@ impl PersonJob {
 }
 
 impl PersonSkill {
-    pub async fn new(conn: &Db, entity: NewPersonSkill, p_person_id: Uuid) -> Result<Self> {
+    pub async fn new(conn: &Db, entity: NewPersonSkill) -> Result<Self> {
         use self::person_skills::dsl::*;
 
         let mut results = conn
@@ -649,7 +684,7 @@ impl PersonSkill {
                 diesel::insert_into(person_skills)
                     .values((
                         id.eq(Uuid::from_u128(rand::random())),
-                        person_id.eq(p_person_id),
+                        person_id.eq(entity.person_id),
                         skill.eq(entity.skill),
                     ))
                     .get_results(c)
@@ -752,7 +787,7 @@ impl PersonSkill {
 }
 
 impl PersonRequirement {
-    pub async fn new(conn: &Db, entity: NewPersonRequirement, p_person_id: Uuid) -> Result<Self> {
+    pub async fn new(conn: &Db, entity: NewPersonRequirement) -> Result<Self> {
         use self::person_requirements::dsl::*;
 
         let mut results = conn
@@ -760,7 +795,7 @@ impl PersonRequirement {
                 diesel::insert_into(person_requirements)
                     .values((
                         id.eq(Uuid::from_u128(rand::random())),
-                        person_id.eq(p_person_id),
+                        person_id.eq(entity.person_id),
                         description.eq(entity.description),
                     ))
                     .get_results(c)
@@ -867,5 +902,192 @@ impl PersonRequirement {
             0 => Err(Errors::BadRequest("id not found".to_owned())),
             _ => Ok(()),
         }
+    }
+}
+
+impl CaseAction {
+    pub async fn new(conn: &Db, entity: NewCaseAction) -> Result<Self> {
+        use self::case_actions::dsl::*;
+
+        let mut results = conn
+            .run(move |c| {
+                diesel::insert_into(case_actions)
+                    .values((
+                        id.eq(Uuid::from_u128(rand::random())),
+                        case_id.eq(entity.case_id),
+                        action.eq(entity.action),
+                        action_date.eq(entity.action_date),
+                        status.eq(0),
+                    ))
+                    .get_results(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match results.pop() {
+            Some(entity) => Ok(entity),
+            None => Err(Errors::DatabaseError(
+                "error while inserting new item to database".to_string(),
+            )),
+        }
+    }
+
+    pub async fn insert(self, conn: &Db) -> Result<()> {
+        use self::case_actions::dsl::*;
+
+        let result = conn
+            .run(move |c| {
+                diesel::insert_into(case_actions)
+                    .values(self)
+                    .returning(id)
+                    .get_results::<Uuid>(c)
+            })
+            .await;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn update(self, conn: &Db) -> Result<()> {
+        use self::case_actions::dsl::*;
+
+        let result = conn
+            .run(move |c| {
+                diesel::update(case_actions)
+                    .filter(id.eq(self.id))
+                    .set(self)
+                    .execute(c)
+            })
+            .await;
+
+        match result {
+            Ok(count) if count == 1 => Ok(()),
+            Ok(_) => Err(Errors::BadRequest("id not found".to_owned())),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn all(conn: &Db) -> Result<Vec<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        conn.run(|c| case_actions.order(id.desc()).load::<CaseAction>(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn all_by_case_id(conn: &Db, p_case_id: Uuid) -> Result<Vec<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        conn.run(move |c| {
+            case_actions
+                .order(id.desc())
+                .filter(case_id.eq(p_case_id))
+                .load::<CaseAction>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        let result = conn
+            .run(move |c| case_actions.find(p_id).get_result::<CaseAction>(c))
+            .await;
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
+        use self::case_actions::dsl::*;
+
+        let count = conn
+            .run(move |c| diesel::delete(case_actions.filter(id.eq(p_id))).execute(c))
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        match count {
+            0 => Err(Errors::BadRequest("id not found".to_owned())),
+            _ => Ok(()),
+        }
+    }
+
+    pub async fn today_actions_for_case(conn: &Db, p_case_id: Uuid) -> Result<Vec<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
+        let tomarrow = today + Duration::days(1);
+
+        conn.run(move |c| {
+            case_actions
+                .order(id.desc())
+                .filter(case_id.eq(p_case_id))
+                .filter(action_date.gt(today))
+                .filter(action_date.lt(tomarrow))
+                .filter(status.lt(ACTION_STATUS_DONE))
+                .load::<CaseAction>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn today_actions_for_all_cases(conn: &Db) -> Result<Vec<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
+        let tomarrow = today + Duration::days(1);
+
+        conn.run(move |c| {
+            case_actions
+                .order(id.desc())
+                .filter(action_date.gt(today))
+                .filter(action_date.lt(tomarrow))
+                .filter(status.lt(ACTION_STATUS_DONE))
+                .load::<CaseAction>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn week_actions_for_all_cases(conn: &Db) -> Result<Vec<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
+        let next_week = today + Duration::days(7);
+
+        conn.run(move |c| {
+            case_actions
+                .order(id.desc())
+                .filter(action_date.gt(today))
+                .filter(action_date.lt(next_week))
+                .filter(status.lt(ACTION_STATUS_DONE))
+                .load::<CaseAction>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
+    }
+
+    pub async fn week_actions_for_case(conn: &Db, p_case_id: Uuid) -> Result<Vec<CaseAction>> {
+        use self::case_actions::dsl::*;
+
+        let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
+        let next_week = today + Duration::days(7);
+
+        conn.run(move |c| {
+            case_actions
+                .order(id.desc())
+                .filter(case_id.eq(p_case_id))
+                .filter(action_date.gt(today))
+                .filter(action_date.lt(next_week))
+                .filter(status.lt(ACTION_STATUS_DONE))
+                .load::<CaseAction>(c)
+        })
+        .await
+        .map_err(|e| Errors::DatabaseError(e.to_string()))
     }
 }

@@ -17,6 +17,9 @@ COPY --from=builder /usr/local/cargo/bin/diesel .
 COPY migrations .
 COPY .env .
 COPY diesel.toml .
+COPY Rocket.toml .
+
+RUN chmod +x form-website
 
 EXPOSE 8000
 
