@@ -7,8 +7,9 @@ services:
     volumes:
       - .db/postgres:/var/lib/postgresql/data
     environment:
-      POSTGRES_USERNAME: root
-      POSTGRES_PASSWORD: 1
+      POSTGRES_DB: 'form_website'
+      POSTGRES_USER: 'root'
+      POSTGRES_PASSWORD: '1'
 
   website:
     build: .
