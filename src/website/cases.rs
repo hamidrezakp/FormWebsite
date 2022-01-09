@@ -65,13 +65,13 @@ async fn get_all_actions(id: Uuid, conn: Db) -> Result<Json<Vec<CaseAction>>> {
     actions.map(|i| Json(i))
 }
 
-#[get("/<id>/action?this_week")]
+#[get("/<id>/action/week")]
 async fn get_week_actions(id: Uuid, conn: Db) -> Result<Json<Vec<CaseAction>>> {
     let actions = CaseAction::week_actions_for_case(&conn, id).await;
     actions.map(|i| Json(i))
 }
 
-#[get("/<id>/action?today")]
+#[get("/<id>/action/today")]
 async fn get_today_actions(id: Uuid, conn: Db) -> Result<Json<Vec<CaseAction>>> {
     let actions = CaseAction::today_actions_for_case(&conn, id).await;
     actions.map(|i| Json(i))

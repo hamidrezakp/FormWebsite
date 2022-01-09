@@ -11,15 +11,15 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_DB: 'form_website'
-      POSTGRES_USER: 'hamid'
+      POSTGRES_USER: 'postgres'
       POSTGRES_PASSWORD: '1'
 
   website:
     container_name: 'website'
-    build: .
+    image: 'form-website:latest'
     restart: always
     ports:
       - "8000:8000"
     depends_on:
       - db
-    
+

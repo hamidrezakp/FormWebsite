@@ -11,10 +11,11 @@ RUN cargo install diesel_cli --no-default-features --features postgres
 
 # second stage.
 FROM debian:buster-slim
+WORKDIR /app
 
 COPY --from=builder /app/target/release/form-website .
 COPY --from=builder /usr/local/cargo/bin/diesel .
-COPY migrations .
+ADD migrations migrations
 COPY .env .
 COPY diesel.toml .
 COPY Rocket.toml .
