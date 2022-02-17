@@ -7,7 +7,7 @@ pub fn cors_fairing() -> Cors {
             .into_iter()
             .map(From::from)
             .collect(),
-        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
+        allowed_headers: AllowedHeaders::some(&["Authorization", "Accept", "Platform-version"]),
         allow_credentials: true,
         ..Default::default()
     }
