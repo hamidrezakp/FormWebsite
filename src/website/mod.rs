@@ -2,6 +2,7 @@ use rocket_sync_db_pools::database;
 
 mod case_actions;
 mod cases;
+mod cors;
 mod person_jobs;
 mod person_requirements;
 mod person_skills;
@@ -20,6 +21,7 @@ pub async fn run() -> std::result::Result<(), rocket::Error> {
         .mount("/person-skill", person_skills::get_routes())
         .mount("/person-requirement", person_requirements::get_routes())
         .attach(Db::fairing())
+        .attach(cors::cors_fairing())
         .ignite()
         .await?
         .launch()

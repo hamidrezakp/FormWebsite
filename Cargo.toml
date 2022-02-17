@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 rocket = { version = "0.5.0-rc.1", features = ["json", "uuid"] }
+rocket_cors = "0.6.0-alpha1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 diesel = { version = "1", features = ["postgres", "uuidv07", "chrono"] }
