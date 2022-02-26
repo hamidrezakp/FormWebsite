@@ -1,5 +1,5 @@
 [global.databases]
-form_website = { url = "postgres://postgres:1@db/form_website" }
+form_website = { url = "postgres://root:1@127.0.0.1/form_website" }
 
 [release]
 port = 8000

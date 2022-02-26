@@ -153,7 +153,6 @@ pub struct CaseAction {
 pub struct NewCaseAction {
     case_id: Uuid,
     action: String,
-    status: i32,
     action_date: Option<NaiveDateTime>,
 }
 
@@ -271,6 +270,7 @@ impl Case {
                         registration_date.eq(Utc::now().naive_utc()),
                         editor.eq(editor_id),
                         address.eq(entity.address),
+                        description.eq(entity.description),
                     ))
                     .get_results(c)
             })
@@ -972,22 +972,30 @@ impl CaseAction {
     pub async fn all(conn: &Db) -> Result<Vec<CaseAction>> {
         use self::case_actions::dsl::*;
 
-        conn.run(|c| case_actions.order(id.desc()).load::<CaseAction>(c))
+        let mut result = conn
+            .run(|c| case_actions.order(action_date.desc()).load::<CaseAction>(c))
             .await
-            .map_err(|e| Errors::DatabaseError(e.to_string()))
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        result.sort_by(|i, j| i.action_date.cmp(&j.action_date));
+        Ok(result)
     }
 
     pub async fn all_by_case_id(conn: &Db, p_case_id: Uuid) -> Result<Vec<CaseAction>> {
         use self::case_actions::dsl::*;
 
-        conn.run(move |c| {
-            case_actions
-                .order(id.desc())
-                .filter(case_id.eq(p_case_id))
-                .load::<CaseAction>(c)
-        })
-        .await
-        .map_err(|e| Errors::DatabaseError(e.to_string()))
+        let mut result = conn
+            .run(move |c| {
+                case_actions
+                    .order(action_date.desc())
+                    .filter(case_id.eq(p_case_id))
+                    .load::<CaseAction>(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        result.sort_by(|i, j| i.action_date.cmp(&j.action_date));
+        Ok(result)
     }
 
     pub async fn get(conn: &Db, p_id: Uuid) -> Result<Option<CaseAction>> {
@@ -1023,17 +1031,21 @@ impl CaseAction {
         let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
         let tomarrow = today + Duration::days(1);
 
-        conn.run(move |c| {
-            case_actions
-                .order(id.desc())
-                .filter(case_id.eq(p_case_id))
-                .filter(action_date.gt(today))
-                .filter(action_date.lt(tomarrow))
-                .filter(status.lt(ACTION_STATUS_DONE))
-                .load::<CaseAction>(c)
-        })
-        .await
-        .map_err(|e| Errors::DatabaseError(e.to_string()))
+        let mut result = conn
+            .run(move |c| {
+                case_actions
+                    .order(action_date)
+                    .filter(case_id.eq(p_case_id))
+                    .filter(action_date.gt(today))
+                    .filter(action_date.lt(tomarrow))
+                    .filter(status.lt(ACTION_STATUS_DONE))
+                    .load::<CaseAction>(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        result.sort_by(|i, j| i.action_date.cmp(&j.action_date));
+        Ok(result)
     }
 
     pub async fn today_actions_for_all_cases(conn: &Db) -> Result<Vec<CaseAction>> {
@@ -1042,16 +1054,20 @@ impl CaseAction {
         let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
         let tomarrow = today + Duration::days(1);
 
-        conn.run(move |c| {
-            case_actions
-                .order(id.desc())
-                .filter(action_date.gt(today))
-                .filter(action_date.lt(tomarrow))
-                .filter(status.lt(ACTION_STATUS_DONE))
-                .load::<CaseAction>(c)
-        })
-        .await
-        .map_err(|e| Errors::DatabaseError(e.to_string()))
+        let mut result = conn
+            .run(move |c| {
+                case_actions
+                    .order(action_date)
+                    .filter(action_date.gt(today))
+                    .filter(action_date.lt(tomarrow))
+                    .filter(status.lt(ACTION_STATUS_DONE))
+                    .load::<CaseAction>(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        result.sort_by(|i, j| i.action_date.cmp(&j.action_date));
+        Ok(result)
     }
 
     pub async fn week_actions_for_all_cases(conn: &Db) -> Result<Vec<CaseAction>> {
@@ -1060,16 +1076,20 @@ impl CaseAction {
         let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
         let next_week = today + Duration::days(7);
 
-        conn.run(move |c| {
-            case_actions
-                .order(id.desc())
-                .filter(action_date.gt(today))
-                .filter(action_date.lt(next_week))
-                .filter(status.lt(ACTION_STATUS_DONE))
-                .load::<CaseAction>(c)
-        })
-        .await
-        .map_err(|e| Errors::DatabaseError(e.to_string()))
+        let mut result = conn
+            .run(move |c| {
+                case_actions
+                    .order(action_date)
+                    .filter(action_date.gt(today))
+                    .filter(action_date.lt(next_week))
+                    .filter(status.lt(ACTION_STATUS_DONE))
+                    .load::<CaseAction>(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        result.sort_by(|i, j| i.action_date.cmp(&j.action_date));
+        Ok(result)
     }
 
     pub async fn week_actions_for_case(conn: &Db, p_case_id: Uuid) -> Result<Vec<CaseAction>> {
@@ -1078,16 +1098,20 @@ impl CaseAction {
         let today = Utc::now().date().naive_utc().and_hms(0, 0, 0);
         let next_week = today + Duration::days(7);
 
-        conn.run(move |c| {
-            case_actions
-                .order(id.desc())
-                .filter(case_id.eq(p_case_id))
-                .filter(action_date.gt(today))
-                .filter(action_date.lt(next_week))
-                .filter(status.lt(ACTION_STATUS_DONE))
-                .load::<CaseAction>(c)
-        })
-        .await
-        .map_err(|e| Errors::DatabaseError(e.to_string()))
+        let mut result = conn
+            .run(move |c| {
+                case_actions
+                    .order(action_date)
+                    .filter(case_id.eq(p_case_id))
+                    .filter(action_date.gt(today))
+                    .filter(action_date.lt(next_week))
+                    .filter(status.lt(ACTION_STATUS_DONE))
+                    .load::<CaseAction>(c)
+            })
+            .await
+            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+
+        result.sort_by(|i, j| i.action_date.cmp(&j.action_date));
+        Ok(result)
     }
 }
