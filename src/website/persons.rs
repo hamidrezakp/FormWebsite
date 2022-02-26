@@ -8,14 +8,14 @@ use uuid::Uuid;
 #[get("/<id>")]
 async fn get(id: Uuid, conn: Db) -> Result<Option<Json<Person>>> {
     let person = Person::get(&conn, id).await?;
-    Ok(person.map(|i| Json(i)))
+    Ok(person.map(Json))
 }
 
 #[get("/")]
 async fn get_all(conn: Db) -> Result<Json<Vec<Person>>> {
     //TODO: Needs pagination
     let persons = Person::all(&conn).await;
-    persons.map(|i| Json(i))
+    persons.map(Json)
 }
 
 #[post("/", data = "<person>")]

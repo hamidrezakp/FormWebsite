@@ -8,7 +8,7 @@ use uuid::Uuid;
 #[get("/<id>")]
 async fn get(id: Uuid, conn: Db) -> Result<Option<Json<PersonSkill>>> {
     let skill = PersonSkill::get(&conn, id).await?;
-    Ok(skill.map(|i| Json(i)))
+    Ok(skill.map(Json))
 }
 
 #[post("/", data = "<skill>")]

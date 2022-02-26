@@ -14,7 +14,7 @@ async fn get_all(conn: Db) -> Result<Json<Vec<CaseAction>>> {
 #[get("/<id>")]
 async fn get(id: Uuid, conn: Db) -> Result<Option<Json<CaseAction>>> {
     let case_action = CaseAction::get(&conn, id).await?;
-    Ok(case_action.map(|i| Json(i)))
+    Ok(case_action.map(Json))
 }
 
 #[post("/", data = "<case_action>")]
