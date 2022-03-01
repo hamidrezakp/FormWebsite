@@ -34,12 +34,12 @@ async fn delete(id: Uuid, conn: Db) -> Result<()> {
     Person::delete(&conn, id).await
 }
 
-#[patch("/<id>/set-leader")]
+#[post("/<id>/set-leader")]
 async fn set_leader(id: Uuid, conn: Db) -> Result<()> {
     Person::set_leader(&conn, id).await
 }
 
-#[patch("/<id>/clear-leader")]
+#[post("/<id>/clear-leader")]
 async fn clear_leader(id: Uuid, conn: Db) -> Result<()> {
     Person::clear_leader(&conn, id).await
 }

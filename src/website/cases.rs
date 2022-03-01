@@ -35,7 +35,7 @@ async fn delete(id: Uuid, conn: Db) -> Result<()> {
     Case::delete(&conn, id).await
 }
 
-#[patch("/<id>/activate")]
+#[post("/<id>/activate")]
 async fn activate(id: Uuid, conn: Db) -> Result<()> {
     let case = Case::get(&conn, id).await?;
     match case {
@@ -44,7 +44,7 @@ async fn activate(id: Uuid, conn: Db) -> Result<()> {
     }
 }
 
-#[patch("/<id>/deactivate")]
+#[post("/<id>/deactivate")]
 async fn deactivate(id: Uuid, conn: Db) -> Result<()> {
     let case = Case::get(&conn, id).await?;
     match case {

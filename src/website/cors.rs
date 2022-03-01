@@ -3,16 +3,10 @@ use rocket_cors::{AllowedHeaders, Cors};
 
 pub fn cors_fairing() -> Cors {
     rocket_cors::CorsOptions {
-        allowed_methods: vec![
-            Method::Get,
-            Method::Post,
-            Method::Delete,
-            Method::Put,
-            Method::Patch,
-        ]
-        .into_iter()
-        .map(From::from)
-        .collect(),
+        allowed_methods: vec![Method::Get, Method::Post, Method::Delete, Method::Put]
+            .into_iter()
+            .map(From::from)
+            .collect(),
         allowed_headers: AllowedHeaders::All,
         allow_credentials: true,
         ..Default::default()

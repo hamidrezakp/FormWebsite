@@ -27,7 +27,7 @@ async fn delete(id: Uuid, conn: Db) -> Result<()> {
     PersonJob::delete(&conn, id).await
 }
 
-#[patch("/<id>/set-default")]
+#[post("/<id>/set-default")]
 async fn set_default(id: Uuid, conn: Db) -> Result<()> {
     PersonJob::set_default(&conn, id).await
 }
