@@ -344,12 +344,36 @@ impl Case {
     }
 
     pub async fn delete(conn: &Db, p_id: Uuid) -> Result<()> {
-        use self::cases::dsl::*;
+        let persons_count = {
+            use self::persons::dsl::*;
 
-        let count = conn
-            .run(move |c| diesel::delete(cases.filter(id.eq(p_id))).execute(c))
-            .await
-            .map_err(|e| Errors::DatabaseError(e.to_string()))?;
+            let result = conn
+                .run(move |c| {
+                    persons
+                        .count()
+                        .filter(case_id.eq(p_id))
+                        .get_result::<i64>(c)
+                })
+                .await;
+
+            match result {
+                Ok(c) => Ok(c),
+                Err(e) => Err(Errors::DatabaseError(e.to_string())),
+            }
+        }?;
+
+        if persons_count != 0 {
+            return Err(Errors::BadRequest(
+                "remove persons within case before removing case".to_owned(),
+            ));
+        }
+
+        let count = {
+            use self::cases::dsl::*;
+            conn.run(move |c| diesel::delete(cases.filter(id.eq(p_id))).execute(c))
+                .await
+                .map_err(|e| Errors::DatabaseError(e.to_string()))?
+        };
 
         match count {
             0 => Err(Errors::BadRequest("id not found".to_owned())),

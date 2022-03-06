@@ -16,7 +16,7 @@ CREATE TABLE cases (
 	number SERIAL,
 	active BOOLEAN NOT NULL,
 	registration_date TIMESTAMP NOT NULL,
-	editor UUID NOT NULL REFERENCES users(id),
+	editor UUID NOT NULL REFERENCES users,
 	address VARCHAR(300),
 	description TEXT NULL
 );
@@ -29,7 +29,7 @@ CREATE TABLE persons (
 	birthday DATE NOT NULL,
 	national_number CHAR(10) NOT NULL,
 	phone_number CHAR(13) NOT NULL,
-	case_id UUID NOT NULL REFERENCES cases(id),
+	case_id UUID NOT NULL REFERENCES cases ON DELETE CASCADE,
 	is_leader BOOLEAN DEFAULT FALSE NOT NULL,
 	family_role INTEGER DEFAULT 3 NOT NULL,
 	description TEXT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE persons (
 
 CREATE TABLE person_jobs (
 	id UUID PRIMARY KEY,
-	person_id UUID NOT NULL REFERENCES persons(id),
+	person_id UUID NOT NULL REFERENCES persons ON DELETE CASCADE,
 	title VARCHAR(100) NOT NULL,
 	income INTEGER NULL,
 	location VARCHAR(100) NULL,
@@ -50,13 +50,13 @@ CREATE TABLE person_jobs (
 
 CREATE TABLE person_skills (
 	id UUID PRIMARY KEY,
-	person_id UUID NOT NULL REFERENCES persons(id),
+	person_id UUID NOT NULL REFERENCES persons ON DELETE CASCADE,
 	skill VARCHAR(200) NOT NULL
 );
 
 CREATE TABLE person_requirements (
 	id UUID PRIMARY KEY,
-	person_id UUID NOT NULL REFERENCES persons(id),
+	person_id UUID NOT NULL REFERENCES persons ON DELETE CASCADE,
 	description TEXT NOT NULL
 );
 
@@ -67,11 +67,12 @@ CREATE TABLE person_default_job (
 	PRIMARY KEY (person_id, person_job_id),
 	FOREIGN KEY (person_id, person_job_id)
 		REFERENCES person_jobs(person_id, id)
+		ON DELETE CASCADE
 );
 
 CREATE TABLE case_actions (
 	id UUID PRIMARY KEY,
-	case_id UUID NOT NULL REFERENCES cases(id),
+	case_id UUID NOT NULL REFERENCES cases ON DELETE CASCADE,
 	action TEXT NOT NULL,
 	status INTEGER DEFAULT 0 NOT NULL,
 	action_date TIMESTAMP NULL
