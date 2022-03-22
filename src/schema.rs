@@ -72,12 +72,25 @@ table! {
 }
 
 table! {
+    user_tokens (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        subject -> Text,
+        token -> Text,
+        created_at -> Timestamp,
+        expires_at -> Timestamp,
+        payload -> Nullable<Text>,
+    }
+}
+
+table! {
     users (id) {
         id -> Uuid,
         username -> Varchar,
         first_name -> Varchar,
         last_name -> Varchar,
-        password_hash -> Varchar,
+        password_hash -> Bytea,
+        password_salt -> Bytea,
         role -> Int4,
     }
 }
@@ -89,6 +102,7 @@ joinable!(person_jobs -> persons (person_id));
 joinable!(person_requirements -> persons (person_id));
 joinable!(person_skills -> persons (person_id));
 joinable!(persons -> cases (case_id));
+joinable!(user_tokens -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     case_actions,
@@ -98,5 +112,6 @@ allow_tables_to_appear_in_same_query!(
     person_requirements,
     person_skills,
     persons,
+    user_tokens,
     users,
 );

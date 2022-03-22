@@ -1,3 +1,6 @@
+[global]
+secret_key = "PUT 32 BIT SECRET KEY HERE"
+
 [global.databases]
 form_website = { url = "postgres://postgres:1@db/form_website" }
 

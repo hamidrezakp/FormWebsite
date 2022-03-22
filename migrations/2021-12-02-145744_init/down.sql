@@ -1,3 +1,4 @@
+DROP TABLE user_tokens;
 DROP TABLE case_actions;
 DROP TABLE person_requirements;
 DROP TABLE person_default_job;

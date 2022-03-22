@@ -17,12 +17,13 @@ type Toman = i32;
 )]
 #[changeset_options(treat_none_as_null = "true")]
 pub struct User {
-    id: Uuid,
-    username: String,
-    first_name: String,
-    last_name: String,
-    password_hash: String,
-    role: i32,
+    pub id: Uuid,
+    pub username: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub password_hash: Vec<u8>,
+    pub password_salt: Vec<u8>,
+    pub role: i32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -30,7 +31,7 @@ pub struct NewUser {
     username: String,
     first_name: String,
     last_name: String,
-    password_hash: String,
+    password: String,
 }
 
 #[derive(
@@ -159,6 +160,13 @@ pub struct NewCaseAction {
 impl User {
     pub async fn new(conn: &Db, entity: NewUser) -> Result<Self> {
         use self::users::dsl::*;
+        use sha2::{Digest, Sha256};
+
+        let mut hasher = Sha256::new();
+        let salt: [u8; 32] = rand::random();
+        hasher.update(entity.password.as_bytes());
+        hasher.update(salt);
+        let pass_hash = hasher.finalize();
 
         let mut results = conn
             .run(move |c| {
@@ -168,8 +176,9 @@ impl User {
                         username.eq(entity.username),
                         first_name.eq(entity.first_name),
                         last_name.eq(entity.last_name),
-                        password_hash.eq(entity.password_hash),
-                        role.eq(3),
+                        password_hash.eq(pass_hash.as_slice()),
+                        password_salt.eq(salt.as_slice()),
+                        role.eq(2),
                     ))
                     .get_results(c)
             })
@@ -234,6 +243,19 @@ impl User {
 
         let result = conn
             .run(move |c| users.find(p_id).get_result::<User>(c))
+            .await;
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(Errors::DatabaseError(e.to_string())),
+        }
+    }
+
+    pub async fn get_by_username(conn: &Db, p_username: String) -> Result<Option<User>> {
+        use self::users::dsl::*;
+
+        let result = conn
+            .run(move |c| users.filter(username.eq(p_username)).get_result::<User>(c))
             .await;
         match result {
             Ok(r) => Ok(Some(r)),

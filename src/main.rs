@@ -5,8 +5,10 @@ extern crate diesel;
 
 mod errors;
 mod models;
+mod repository;
 mod schema;
 mod service_options;
+mod user_token_service;
 mod website;
 
 #[tokio::main]

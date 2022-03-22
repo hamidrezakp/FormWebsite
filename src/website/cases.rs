@@ -20,9 +20,8 @@ async fn get_all(conn: Db, _token: HasEditorPermissions) -> Result<Json<Vec<Case
 }
 
 #[post("/", data = "<case>")]
-async fn insert(case: Json<NewCase>, conn: Db, _token: HasEditorPermissions) -> Result<Json<Case>> {
-    //TODO write request guards and use the user id instead.
-    let case = Case::new(&conn, case.into_inner(), Uuid::nil()).await?;
+async fn insert(case: Json<NewCase>, conn: Db, token: HasEditorPermissions) -> Result<Json<Case>> {
+    let case = Case::new(&conn, case.into_inner(), token.0.user_id).await?;
     Ok(Json(case))
 }
 

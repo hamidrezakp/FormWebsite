@@ -7,8 +7,11 @@ CREATE TABLE users (
 	username VARCHAR(30) NOT NULL,
 	first_name VARCHAR(30) NOT NULL,
 	last_name VARCHAR(30) NOT NULL,
-	password_hash VARCHAR(64) NOT NULL,
-	role INTEGER DEFAULT 3 NOT NULL
+	password_hash BYTEA NOT NULL,
+	password_salt BYTEA NOT NULL,
+	role INTEGER DEFAULT 3 NOT NULL,
+
+	UNIQUE (username)
 );
 
 CREATE TABLE cases (
@@ -76,4 +79,14 @@ CREATE TABLE case_actions (
 	action TEXT NOT NULL,
 	status INTEGER DEFAULT 0 NOT NULL,
 	action_date TIMESTAMP NULL
+);
+
+CREATE TABLE user_tokens (
+	id UUID PRIMARY KEY,
+	user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+	subject TEXT NOT NULL,
+	token TEXT NOT NULL,
+	created_at TIMESTAMP NOT NULL,
+	expires_at TIMESTAMP NOT NULL,
+	payload TEXT NULL
 );
