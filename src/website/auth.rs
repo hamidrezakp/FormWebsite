@@ -1,4 +1,5 @@
 use super::jwt;
+use super::users::models::UserInfo;
 use super::Db;
 use crate::errors::*;
 use crate::models::*;
@@ -37,9 +38,9 @@ mod models {
 }
 
 #[get("/user-info")]
-async fn get_info(conn: Db, token: jwt::IsLoggedIn) -> Result<Option<Json<User>>> {
+async fn get_info(conn: Db, token: jwt::IsLoggedIn) -> Result<Option<Json<UserInfo>>> {
     let user = User::get(&conn, token.0.user_id).await?;
-    Ok(user.map(Json))
+    Ok(user.map(UserInfo::of_user).map(Json))
 }
 
 #[post("/login", data = "<login_request>")]

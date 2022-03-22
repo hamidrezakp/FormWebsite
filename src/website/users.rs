@@ -8,7 +8,7 @@ use rocket::serde::json::Json;
 use rocket::Route;
 use uuid::Uuid;
 
-mod models {
+pub mod models {
     use crate::{models::User, website::jwt::Role};
     use serde::Serialize;
     use uuid::Uuid;
