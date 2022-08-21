@@ -28,6 +28,7 @@ mod models {
     #[derive(Serialize)]
     pub struct LoginResponse {
         pub access_token: String,
+        pub role: i32,
         pub refresh_token: String,
     }
 
@@ -80,6 +81,7 @@ async fn login(
         .reduce(|ac, item| format!("{}{}", ac, item))
         .ok_or_else(|| Errors::InternalError("cannot create refresh token".into()))?;
 
+    //TODO: we need multiple logins with same credentials
     user_token_service
         .revoke(user.id, REFRESH_TOKEN_SUBJECT.into())
         .await?;
@@ -96,6 +98,7 @@ async fn login(
 
     let response = models::LoginResponse {
         access_token,
+        role: user.role,
         refresh_token,
     };
 
@@ -104,6 +107,7 @@ async fn login(
 
 #[post("/logout")]
 async fn logout(claims: jwt::IsLoggedIn, user_token_service: user_token_service::T) -> Result<()> {
+    //TODO: just log out that specific token, not all of tokens from this user.
     user_token_service
         .revoke(claims.0.user_id, REFRESH_TOKEN_SUBJECT.into())
         .await
@@ -158,6 +162,7 @@ async fn refresh(
 
         let response = models::LoginResponse {
             access_token,
+            role: user.role,
             refresh_token,
         };
 
